@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
 import { Button } from '@/components/ui/button';
+import { StreamQualityMonitor } from './StreamQualityMonitor';
 import { Play, Pause, Volume2, VolumeX, Maximize, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -35,6 +36,27 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
         enableWorker: true,
         lowLatencyMode: true,
         backBufferLength: 90,
+        // Low latency configuration for live streaming
+        liveSyncDurationCount: 1,
+        liveMaxLatencyDurationCount: 3,
+        maxLiveSyncPlaybackRate: 1.5,
+        liveDurationInfinity: true,
+        highBufferWatchdogPeriod: 1,
+        // Quality settings for better audio/video
+        maxBufferSize: 30 * 1000 * 1000, // 30MB
+        maxBufferLength: 30, // 30 seconds
+        maxMaxBufferLength: 300, // 5 minutes max
+        // Error recovery - using correct property names
+        manifestLoadingTimeOut: 10000,
+        manifestLoadingMaxRetry: 3,
+        manifestLoadingRetryDelay: 500,
+        // Advanced settings for smooth playback
+        abrEwmaDefaultEstimate: 500000,
+        abrBandWidthFactor: 0.95,
+        abrBandWidthUpFactor: 0.7,
+        startLevel: -1, // Auto start level
+        capLevelOnFPSDrop: true,
+        capLevelToPlayerSize: true,
       });
 
       hlsRef.current = hls;
@@ -42,13 +64,35 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        console.log('HLS manifest parsed, starting playback');
         setIsLoading(false);
+        // Auto-play for live streams
+        video.play().catch(console.error);
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
         console.error('HLS Error:', data);
-        setError('Stream error occurred');
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              console.log('Network error, trying to recover...');
+              hls.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              console.log('Media error, trying to recover...');
+              hls.recoverMediaError();
+              break;
+            default:
+              setError('Critical stream error occurred');
+              break;
+          }
+        }
         setIsLoading(false);
+      });
+
+      // Quality level monitoring
+      hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
+        console.log(`Quality switched to level ${data.level}`);
       });
 
       return () => {
@@ -57,11 +101,19 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       // Native HLS support (Safari)
       video.src = src;
+      video.load();
       setIsLoading(false);
+      // Enhanced settings for Safari
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('webkit-playsinline', 'true');
     } else {
-      // Fallback for regular video
+      // Fallback for regular video with optimizations
       video.src = src;
+      video.load();
       setIsLoading(false);
+      // Optimize for live streaming
+      video.setAttribute('preload', 'auto');
+      video.setAttribute('playsinline', 'true');
     }
   }, [src]);
 
@@ -261,6 +313,13 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
           </div>
         </div>
       </div>
+
+      {/* Stream Quality Monitor */}
+      <StreamQualityMonitor
+        isStreaming={isPlaying && !isLoading}
+        streamUrl={src}
+        className="absolute top-16 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+      />
 
       {/* Live Badge */}
       <div className="absolute top-4 right-4">

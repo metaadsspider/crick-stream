@@ -21,8 +21,8 @@ const Index = () => {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Auto-refresh interval (30 seconds)
-  const AUTO_REFRESH_INTERVAL = 30000;
+  // Dynamic auto-refresh based on match timing
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState(30000);
 
   const fetchMatches = useCallback(async (showToast = false) => {
     try {
@@ -35,10 +35,15 @@ const Index = () => {
         setMatches(response.data);
         setLastUpdated(new Date());
         
+        // Update refresh interval based on match timing
+        const newInterval = cricketApi.getRefreshInterval(response.data);
+        setAutoRefreshInterval(newInterval);
+        
         if (showToast) {
+          const liveCount = response.data.filter(m => m.status === 'live').length;
           toast({
             title: "Updated Successfully",
-            description: `Loaded ${response.data.length} matches`,
+            description: `Loaded ${response.data.length} matches (${liveCount} live)`,
           });
         }
       } else {
@@ -66,14 +71,14 @@ const Index = () => {
     fetchMatches();
   }, [fetchMatches]);
 
-  // Auto-refresh
+  // Dynamic auto-refresh with intelligent timing
   useEffect(() => {
     const interval = setInterval(() => {
       fetchMatches();
-    }, AUTO_REFRESH_INTERVAL);
+    }, autoRefreshInterval);
 
     return () => clearInterval(interval);
-  }, [fetchMatches]);
+  }, [fetchMatches, autoRefreshInterval]);
 
   // Filter and search logic
   useEffect(() => {

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { CricketMatch, ApiResponse } from '@/types/cricket';
+import { originalSiteApi } from './originalSiteApi';
 
 // Multiple CORS proxies for reliability
 const CORS_PROXIES = [
@@ -52,20 +53,32 @@ export class CricketApiService {
         return { success: true, data: cached };
       }
 
-      console.log('Fetching fresh match data from FanCode...');
+      console.log('Fetching fresh match data from multiple sources...');
 
-      // Try multiple FanCode endpoints for better coverage
+      // Try multiple sources in parallel for better coverage
       const responses = await Promise.allSettled([
+        this.fetchFromOriginalSite(),
         this.fetchFromFanCodeLive(),
         this.fetchFromFanCodeAll(),
         this.fetchFromFanCodeDirect(),
       ]);
 
+      // Combine all successful responses
+      let allMatches: CricketMatch[] = [];
+      
       for (const response of responses) {
         if (response.status === 'fulfilled' && response.value.success) {
-          this.setCachedData(cacheKey, response.value.data);
-          return response.value;
+          const matches = response.value.data || [];
+          allMatches = [...allMatches, ...matches];
         }
+      }
+
+      // Remove duplicates based on match ID or title
+      const uniqueMatches = this.removeDuplicateMatches(allMatches);
+      
+      if (uniqueMatches.length > 0) {
+        this.setCachedData(cacheKey, uniqueMatches);
+        return { success: true, data: uniqueMatches };
       }
 
       // Enhanced fallback with realistic mock data
@@ -76,6 +89,16 @@ export class CricketApiService {
     } catch (error) {
       console.error('Error fetching matches:', error);
       return { success: false, error: 'Failed to fetch matches' };
+    }
+  }
+
+  private async fetchFromOriginalSite(): Promise<ApiResponse> {
+    try {
+      const matches = await originalSiteApi.fetchMatchesFromOriginalSite();
+      return { success: true, data: matches };
+    } catch (error) {
+      console.error('Original site fetch failed:', error);
+      return { success: false, error: 'Original site unavailable' };
     }
   }
 
@@ -454,6 +477,39 @@ export class CricketApiService {
     }
     
     return 30000; // 30 seconds default
+  }
+
+  // Remove duplicate matches based on ID or title similarity
+  private removeDuplicateMatches(matches: CricketMatch[]): CricketMatch[] {
+    const seen = new Set<string>();
+    const unique: CricketMatch[] = [];
+
+    for (const match of matches) {
+      const key = `${match.team1.name}-${match.team2.name}-${match.tournament}`.toLowerCase();
+      if (!seen.has(key) && !seen.has(match.id)) {
+        seen.add(key);
+        seen.add(match.id);
+        unique.push(match);
+      }
+    }
+
+    // Sort by status priority (live first, then upcoming, then completed)
+    return unique.sort((a, b) => {
+      const statusPriority = { live: 0, upcoming: 1, completed: 2 };
+      return statusPriority[a.status] - statusPriority[b.status];
+    });
+  }
+
+  // Auto-sync with original site
+  async syncWithOriginalSite(): Promise<void> {
+    try {
+      await originalSiteApi.syncWithOriginalSite();
+      // Clear cache to force fresh fetch
+      this.cache.clear();
+      console.log('Synced with original site');
+    } catch (error) {
+      console.error('Sync failed:', error);
+    }
   }
 }
 

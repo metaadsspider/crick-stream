@@ -71,13 +71,27 @@ const Index = () => {
     fetchMatches();
   }, [fetchMatches]);
 
-  // Dynamic auto-refresh with intelligent timing
+  // Dynamic auto-refresh with original site sync
   useEffect(() => {
-    const interval = setInterval(() => {
+    // Auto-sync with original site every 60 seconds
+    const syncInterval = setInterval(async () => {
+      try {
+        await cricketApi.syncWithOriginalSite();
+        fetchMatches();
+      } catch (error) {
+        console.error('Sync failed:', error);
+      }
+    }, 60000);
+
+    // Smart refresh based on match timing
+    const refreshInterval = setInterval(() => {
       fetchMatches();
     }, autoRefreshInterval);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(syncInterval);
+      clearInterval(refreshInterval);
+    };
   }, [fetchMatches, autoRefreshInterval]);
 
   // Filter and search logic

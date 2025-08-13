@@ -143,8 +143,14 @@ export class OriginalSiteApiService {
             matches.push({
               id: `original_${matchId}`,
               title: title,
-              team1: teamData.team1,
-              team2: teamData.team2,
+              team1: {
+                ...teamData.team1,
+                logo: teamData.team1.logo || this.getTeamLogo(teamData.team1.name)
+              },
+              team2: {
+                ...teamData.team2,
+                logo: teamData.team2.logo || this.getTeamLogo(teamData.team2.name)
+              },
               startTime: startTime,
               status: status,
               tournament: tournament,

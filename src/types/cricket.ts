@@ -5,11 +5,13 @@ export interface CricketMatch {
     name: string;
     shortName: string;
     flag: string;
+    logo?: string;
   };
   team2: {
     name: string;
     shortName: string;
     flag: string;
+    logo?: string;
   };
   startTime: string;
   status: 'live' | 'upcoming' | 'completed';
@@ -18,6 +20,7 @@ export interface CricketMatch {
   streamUrl?: string;
   language: string;
   isStreamable: boolean;
+  quality?: string;
 }
 
 export interface LiveStreamData {

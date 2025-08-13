@@ -102,85 +102,275 @@ export class OriginalSiteApiService {
     try {
       const matches: CricketMatch[] = [];
       
-      // Extract match data using regex patterns
-      const matchPatterns = [
-        // Match ID pattern
-        /Match ID:(\d+)/g,
-        // Match title pattern
-        /###\s*(.+?)\s*(?=\n|$)/g,
-        // Team names and flags
-        /!\[([^\]]+)\]\([^)]+\)/g,
-        // Status pattern (LIVE, upcoming time)
-        /(LIVE|[\d:]+)/g,
-        // Tournament pattern
-        /\*\*([^*]+Tournament[^*]*)\*\*/g
-      ];
-
-      // Find all match IDs first
-      const matchIdMatches = [...htmlContent.matchAll(/Match ID:(\d+)/g)];
+      // Enhanced parsing for detailed match information
+      // Look for match blocks with more comprehensive data extraction
+      const matchBlocks = this.extractMatchBlocks(htmlContent);
       
-      matchIdMatches.forEach((matchIdMatch, index) => {
-        const matchId = matchIdMatch[1];
-        const matchStartIndex = matchIdMatch.index || 0;
-        const nextMatchIndex = matchIdMatches[index + 1]?.index || htmlContent.length;
-        const matchSection = htmlContent.slice(matchStartIndex - 500, nextMatchIndex);
-        
-        // Extract match title
-        const titleMatch = matchSection.match(/###\s*(.+?)(?=\n)/);
-        const title = titleMatch?.[1]?.trim() || 'Cricket Match';
-        
-        // Extract teams
-        const teamMatches = [...matchSection.matchAll(/!\[([^\]]+)\]/g)];
-        const teams = teamMatches.map(match => match[1]).filter(team => 
-          team && !team.includes('http') && team.length < 50
-        );
-        
-        // Extract tournament
-        const tournamentMatch = matchSection.match(/([A-Z][^,\n]+(?:League|Cup|Trophy|Series|Championship|Tournament)[^,\n]*)/i);
-        const tournament = tournamentMatch?.[1]?.trim() || 'Cricket Match';
-        
-        // Extract status
-        const isLive = matchSection.includes('LIVE');
-        const timeMatch = matchSection.match(/Start Time:([^\n]+)/);
-        const startTime = timeMatch?.[1]?.trim() || new Date().toISOString();
-        
-        // Extract language
-        const languageMatch = matchSection.match(/(ENGLISH|HINDI|[A-Z]+)(?=\s|\n)/);
-        const language = languageMatch?.[1] || 'ENGLISH';
-        
-        // Check if streamable
-        const isStreamable = !matchSection.includes('Stream not available');
-        
-        if (teams.length >= 2 && title) {
-          matches.push({
-            id: `original_${matchId}`,
-            title: title,
-            team1: {
-              name: teams[0],
-              shortName: teams[0].substring(0, 3).toUpperCase(),
-              flag: this.getTeamFlag(teams[0])
-            },
-            team2: {
-              name: teams[1],
-              shortName: teams[1].substring(0, 3).toUpperCase(),
-              flag: this.getTeamFlag(teams[1])
-            },
-            startTime: this.parseStartTime(startTime),
-            status: isLive ? 'live' : this.determineStatus(startTime),
-            tournament: tournament,
-            image: `/api/placeholder/400/200?text=${encodeURIComponent(tournament)}`,
-            streamUrl: isStreamable ? this.constructStreamUrl(matchId) : undefined,
-            language: language,
-            isStreamable: isStreamable
-          });
+      matchBlocks.forEach((block, index) => {
+        try {
+          // Extract match ID
+          const matchIdMatch = block.match(/(?:Match ID|ID|match-id)[:\s]*(\d+)/i);
+          const matchId = matchIdMatch?.[1] || `auto_${Date.now()}_${index}`;
+          
+          // Extract comprehensive match title
+          const titleMatches = [
+            block.match(/###\s*(.+?)(?=\n)/),
+            block.match(/\*\*([^*]+vs[^*]+)\*\*/i),
+            block.match(/^([A-Z][^,\n]+vs[^,\n]+)/m),
+            block.match(/([A-Z][^,\n]+\s+vs\s+[A-Z][^,\n]+)/i)
+          ];
+          const title = titleMatches.find(m => m)?.[1]?.trim() || 'Live Cricket Match';
+          
+          // Enhanced team extraction with logos
+          const teamData = this.extractTeamData(block);
+          
+          // Extract tournament with better matching
+          const tournament = this.extractTournament(block);
+          
+          // Extract timing and status
+          const { status, startTime } = this.extractMatchStatus(block);
+          
+          // Extract language and quality info
+          const language = this.extractLanguage(block);
+          
+          // Extract stream information
+          const streamInfo = this.extractStreamInfo(block, matchId);
+          
+          // Extract thumbnail/image
+          const thumbnail = this.extractThumbnail(block, tournament);
+          
+          if (teamData.team1 && teamData.team2) {
+            matches.push({
+              id: `original_${matchId}`,
+              title: title,
+              team1: teamData.team1,
+              team2: teamData.team2,
+              startTime: startTime,
+              status: status,
+              tournament: tournament,
+              image: thumbnail,
+              streamUrl: streamInfo.streamUrl,
+              language: language,
+              isStreamable: streamInfo.isStreamable,
+              quality: streamInfo.quality || 'HD'
+            });
+          }
+        } catch (error) {
+          console.error(`Error parsing match block ${index}:`, error);
         }
       });
 
+      console.log(`Parsed ${matches.length} matches from original site with enhanced data`);
       return matches;
     } catch (error) {
       console.error('Error parsing HTML content:', error);
       return [];
     }
+  }
+
+  private extractMatchBlocks(htmlContent: string): string[] {
+    // Split content into match blocks using various delimiters
+    const blocks = [];
+    
+    // Method 1: Split by Match ID
+    const idSplits = htmlContent.split(/(?=Match ID:|(?=ID:\s*\d+)|(?=match-id))/i);
+    
+    // Method 2: Split by match headers
+    const headerSplits = htmlContent.split(/(?=###|(?=\*\*[^*]+vs[^*]+\*\*))/i);
+    
+    // Method 3: Split by team vs team patterns
+    const vsSplits = htmlContent.split(/(?=[A-Z][^,\n]+\s+vs\s+[A-Z][^,\n]+)/i);
+    
+    // Combine and deduplicate blocks
+    const allBlocks = [...idSplits, ...headerSplits, ...vsSplits]
+      .filter(block => block && block.trim().length > 50)
+      .filter(block => block.includes('vs') || block.includes('VS') || block.includes('V/S'));
+    
+    return allBlocks;
+  }
+
+  private extractTeamData(block: string): { team1: any; team2: any } {
+    // Extract team names with various patterns
+    const teamPatterns = [
+      // Pattern 1: Flag images with team names
+      /!\[([^\]]+)\]\([^)]+\)/g,
+      // Pattern 2: Bold team names
+      /\*\*([A-Z][^*]+)\*\*/g,
+      // Pattern 3: Direct vs pattern
+      /([A-Z][A-Za-z\s]+)\s+(?:vs|V[Ss]|VS)\s+([A-Z][A-Za-z\s]+)/i,
+      // Pattern 4: Team names in brackets
+      /\[([A-Z][^\]]+)\]/g
+    ];
+
+    let teams: string[] = [];
+    
+    for (const pattern of teamPatterns) {
+      const matches = [...block.matchAll(pattern)];
+      const extractedTeams = matches
+        .map(m => m[1])
+        .filter(team => team && !team.includes('http') && team.length < 30 && team.length > 2)
+        .slice(0, 2);
+      
+      if (extractedTeams.length >= 2) {
+        teams = extractedTeams;
+        break;
+      }
+    }
+
+    if (teams.length < 2) {
+      // Fallback: extract from vs pattern
+      const vsMatch = block.match(/([A-Z][A-Za-z\s]{2,20})\s+(?:vs|V[Ss]|VS)\s+([A-Z][A-Za-z\s]{2,20})/i);
+      if (vsMatch) {
+        teams = [vsMatch[1].trim(), vsMatch[2].trim()];
+      }
+    }
+
+    return teams.length >= 2 ? {
+      team1: {
+        name: teams[0],
+        shortName: this.generateShortName(teams[0]),
+        flag: this.getTeamFlag(teams[0]),
+        logo: this.getTeamLogo(teams[0])
+      },
+      team2: {
+        name: teams[1],
+        shortName: this.generateShortName(teams[1]),
+        flag: this.getTeamFlag(teams[1]),
+        logo: this.getTeamLogo(teams[1])
+      }
+    } : { team1: null, team2: null };
+  }
+
+  private extractTournament(block: string): string {
+    const tournamentPatterns = [
+      /\*\*([^*]*(?:League|Cup|Trophy|Series|Championship|Tournament|T20|ODI|Test)[^*]*)\*\*/i,
+      /([A-Z][^,\n]*(?:League|Cup|Trophy|Series|Championship|Tournament|T20|ODI|Test)[^,\n]*)/i,
+      /Tournament:\s*([^,\n]+)/i,
+      /Series:\s*([^,\n]+)/i
+    ];
+
+    for (const pattern of tournamentPatterns) {
+      const match = block.match(pattern);
+      if (match && match[1]) {
+        return match[1].trim();
+      }
+    }
+
+    return 'Cricket Match';
+  }
+
+  private extractMatchStatus(block: string): { status: 'live' | 'upcoming' | 'completed'; startTime: string } {
+    const isLive = /LIVE|🔴|●\s*LIVE/i.test(block);
+    
+    // Extract time patterns
+    const timePatterns = [
+      /Start Time:\s*([^,\n]+)/i,
+      /Time:\s*([^,\n]+)/i,
+      /(\d{1,2}:\d{2}(?:\s*[AP]M)?)/i,
+      /(\d{1,2}\/\d{1,2}\/\d{4}[^,\n]*)/,
+      /((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[^,\n]*\d{4})/i
+    ];
+
+    let startTime = new Date().toISOString();
+    
+    for (const pattern of timePatterns) {
+      const match = block.match(pattern);
+      if (match && match[1]) {
+        startTime = this.parseStartTime(match[1]);
+        break;
+      }
+    }
+
+    const status = isLive ? 'live' : this.determineStatus(startTime);
+    return { status, startTime };
+  }
+
+  private extractLanguage(block: string): string {
+    const langMatch = block.match(/(ENGLISH|HINDI|TAMIL|TELUGU|BENGALI|MARATHI|GUJARATI|KANNADA|[A-Z]{2,})/i);
+    return langMatch?.[1]?.toUpperCase() || 'ENGLISH';
+  }
+
+  private extractStreamInfo(block: string, matchId: string): { streamUrl?: string; isStreamable: boolean; quality?: string } {
+    const isStreamable = !block.includes('Stream not available') && !block.includes('No stream');
+    
+    // Extract quality info
+    const qualityMatch = block.match(/(HD|FHD|4K|720p|1080p|480p)/i);
+    const quality = qualityMatch?.[1] || 'HD';
+    
+    // Look for direct stream URLs
+    const urlPatterns = [
+      /https?:\/\/[^\s,)]+\.m3u8/i,
+      /https?:\/\/[^\s,)]+\/playlist\.m3u8/i,
+      /https?:\/\/[^\s,)]+\/manifest\.m3u8/i
+    ];
+
+    let streamUrl;
+    for (const pattern of urlPatterns) {
+      const match = block.match(pattern);
+      if (match) {
+        streamUrl = match[0];
+        break;
+      }
+    }
+
+    // If no direct URL found, construct one
+    if (isStreamable && !streamUrl) {
+      streamUrl = this.constructStreamUrl(matchId);
+    }
+
+    return { streamUrl, isStreamable, quality };
+  }
+
+  private extractThumbnail(block: string, tournament: string): string {
+    // Look for image URLs in the block
+    const imagePatterns = [
+      /!\[[^\]]*\]\(([^)]+\.(?:jpg|jpeg|png|gif|webp))\)/i,
+      /https?:\/\/[^\s,)]+\.(?:jpg|jpeg|png|gif|webp)/i,
+      /<img[^>]+src=["']([^"']+)["']/i
+    ];
+
+    for (const pattern of imagePatterns) {
+      const match = block.match(pattern);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+
+    // Generate placeholder with tournament name
+    return `https://via.placeholder.com/400x200/1a1a1a/ffffff?text=${encodeURIComponent(tournament)}`;
+  }
+
+  private generateShortName(teamName: string): string {
+    if (!teamName) return 'TM';
+    
+    // Handle common team name patterns
+    const words = teamName.trim().split(/\s+/);
+    
+    if (words.length === 1) {
+      return words[0].substring(0, 3).toUpperCase();
+    } else if (words.length === 2) {
+      return (words[0][0] + words[1][0] + words[1][1]).toUpperCase();
+    } else {
+      return words.slice(0, 3).map(w => w[0]).join('').toUpperCase();
+    }
+  }
+
+  private getTeamLogo(teamName: string): string {
+    const logoMap: { [key: string]: string } = {
+      'india': 'https://img1.hscicdn.com/image/upload/f_auto/lsci/db/PICTURES/CMS/316600/316654.png',
+      'australia': 'https://img1.hscicdn.com/image/upload/f_auto/lsci/db/PICTURES/CMS/316600/316655.png',
+      'england': 'https://img1.hscicdn.com/image/upload/f_auto/lsci/db/PICTURES/CMS/316600/316656.png',
+      'pakistan': 'https://img1.hscicdn.com/image/upload/f_auto/lsci/db/PICTURES/CMS/316600/316657.png',
+      'south africa': 'https://img1.hscicdn.com/image/upload/f_auto/lsci/db/PICTURES/CMS/316600/316658.png',
+      'new zealand': 'https://img1.hscicdn.com/image/upload/f_auto/lsci/db/PICTURES/CMS/316600/316659.png',
+      'west indies': 'https://img1.hscicdn.com/image/upload/f_auto/lsci/db/PICTURES/CMS/316600/316660.png',
+      'sri lanka': 'https://img1.hscicdn.com/image/upload/f_auto/lsci/db/PICTURES/CMS/316600/316661.png',
+      'bangladesh': 'https://img1.hscicdn.com/image/upload/f_auto/lsci/db/PICTURES/CMS/316600/316662.png',
+      'afghanistan': 'https://img1.hscicdn.com/image/upload/f_auto/lsci/db/PICTURES/CMS/316600/316663.png'
+    };
+
+    const key = teamName.toLowerCase();
+    return logoMap[key] || `https://via.placeholder.com/50x50/orange/white?text=${teamName.charAt(0)}`;
   }
 
   private parseStartTime(timeString: string): string {

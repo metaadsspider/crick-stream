@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { SkullHeader } from '@/components/SkullHeader';
 import { MatchCard } from '@/components/MatchCard';
 import { StreamModal } from '@/components/StreamModal';
+import { TelegramPopup } from '@/components/TelegramPopup';
 import { CricketMatch } from '@/types/cricket';
 import { cricketApi } from '@/services/cricketApi';
 import { useToast } from '@/hooks/use-toast';
@@ -281,7 +282,7 @@ const Index = () => {
             <p className="text-xs">
               Built with ❤️ for cricket fans worldwide | 
               <button 
-                onClick={() => window.open('https://t.me/skullcricknews', '_blank')}
+                onClick={() => window.open('https://t.me/CricketNewsSkull', '_blank')}
                 className="text-accent hover:underline ml-1"
               >
                 Join our Telegram
@@ -300,6 +301,9 @@ const Index = () => {
           setSelectedMatch(null);
         }}
       />
+
+      {/* Telegram Popup */}
+      <TelegramPopup />
     </div>
   );
 };

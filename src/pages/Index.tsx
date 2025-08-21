@@ -159,28 +159,6 @@ const Index = () => {
 
   const counts = getMatchCounts();
 
-  if (error && matches.length === 0) {
-    return (
-      <div className="min-h-screen bg-gradient-dark p-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center py-20">
-            <div className="text-6xl mb-6">💀</div>
-            <h1 className="text-3xl font-bold text-primary mb-4">Skull Crick News</h1>
-            <p className="text-xl text-muted-foreground mb-6">Failed to load cricket matches</p>
-            <div className="text-sm text-destructive mb-6">{error}</div>
-            <Button
-              onClick={() => fetchMatches(true)}
-              className="bg-gradient-skull hover:shadow-skull"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Retry
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-dark">
       {/* Background Pattern */}
@@ -191,6 +169,30 @@ const Index = () => {
       </div>
 
       <div className="relative z-10 container mx-auto p-4 space-y-6">
+        {/* Error Banner - Show error but don't block content */}
+        {error && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="text-destructive">⚠️</div>
+                <div>
+                  <p className="text-sm font-medium text-destructive">Connection Issue</p>
+                  <p className="text-xs text-muted-foreground">Showing cached/demo matches</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fetchMatches(true)}
+                disabled={isLoading}
+              >
+                <RefreshCw className="w-3 h-3 mr-1" />
+                Retry
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <SkullHeader
           totalMatches={counts.total}

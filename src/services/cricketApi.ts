@@ -17,6 +17,7 @@ const FANCODE_ENDPOINTS = {
   matchStream: 'https://www.fancode.com/api/v1/match/',
   streamData: 'https://d2ao0uy6gqh4.cloudfront.net/fancode/matches/',
   manifestBase: 'https://streaming.fancode.com/hls/',
+  githubJson: 'https://raw.githubusercontent.com/drmlive/fancode-live-events/refs/heads/main/fancode.json',
 };
 
 export class CricketApiService {
@@ -58,6 +59,7 @@ export class CricketApiService {
       // Try multiple sources in parallel for better coverage
       const responses = await Promise.allSettled([
         this.fetchFromOriginalSite(),
+        this.fetchFromGitHubFanCode(),
         this.fetchFromFanCodeLive(),
         this.fetchFromFanCodeAll(),
         this.fetchFromFanCodeDirect(),
@@ -108,6 +110,30 @@ export class CricketApiService {
 
   private async fetchFromFanCodeAll(): Promise<ApiResponse> {
     return this.fetchWithRetry(FANCODE_ENDPOINTS.matches);
+  }
+
+  private async fetchFromGitHubFanCode(): Promise<ApiResponse> {
+    try {
+      console.log('🎯 Fetching from GitHub FanCode JSON...');
+      const response = await axios.get(FANCODE_ENDPOINTS.githubJson, {
+        timeout: 10000,
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+      });
+
+      if (response.data && response.data.matches) {
+        const matches = this.parseGitHubFanCodeData(response.data.matches);
+        console.log(`✅ GitHub FanCode: Found ${matches.length} matches`);
+        return { success: true, data: matches };
+      }
+
+      return { success: false, error: 'No matches in GitHub FanCode data' };
+    } catch (error) {
+      console.error('❌ GitHub FanCode fetch failed:', error);
+      return { success: false, error: 'GitHub FanCode fetch failed' };
+    }
   }
 
   private async fetchFromFanCodeDirect(): Promise<ApiResponse> {
@@ -215,6 +241,130 @@ export class CricketApiService {
       console.error('Error parsing advanced match data:', error);
       return [];
     }
+  }
+
+  private parseGitHubFanCodeData(matches: any[]): CricketMatch[] {
+    try {
+      console.log('🔄 Parsing GitHub FanCode data...');
+      
+      return matches
+        .filter(match => match.event_category === 'Cricket')
+        .map(match => {
+          // Extract team names from match data
+          const team1Name = match.team_1 || 'Team 1';
+          const team2Name = match.team_2 || 'Team 2';
+          
+          // Generate short names from full names
+          const team1Short = this.generateShortName(team1Name);
+          const team2Short = this.generateShortName(team2Name);
+          
+          // Determine status
+          let status: 'live' | 'upcoming' | 'completed' = 'upcoming';
+          if (match.status === 'LIVE') {
+            status = 'live';
+          } else if (match.status === 'COMPLETED' || match.status === 'FINISHED') {
+            status = 'completed';
+          }
+          
+          // Parse start time
+          const startTime = match.startTime || new Date().toISOString();
+          
+          // Get stream URL (prefer adfree_url over dai_url)
+          const streamUrl = match.adfree_url || match.dai_url;
+          
+          const cricketMatch: CricketMatch = {
+            id: match.match_id?.toString() || `github-${Date.now()}-${Math.random()}`,
+            title: match.match_name || match.title || `${team1Name} vs ${team2Name}`,
+            team1: {
+              name: team1Name,
+              shortName: team1Short,
+              flag: this.generateTeamFlag(team1Name),
+              logo: this.generateTeamLogo(team1Name),
+            },
+            team2: {
+              name: team2Name,
+              shortName: team2Short,
+              flag: this.generateTeamFlag(team2Name),
+              logo: this.generateTeamLogo(team2Name),
+            },
+            startTime,
+            status,
+            tournament: match.event_name || 'Cricket Match',
+            image: match.src || this.generateMatchImage(match),
+            streamUrl,
+            language: 'English',
+            isStreamable: !!streamUrl,
+            quality: streamUrl ? 'HD' : undefined,
+          };
+          
+          return cricketMatch;
+        })
+        .filter(match => match !== null);
+    } catch (error) {
+      console.error('❌ Error parsing GitHub FanCode data:', error);
+      return [];
+    }
+  }
+
+  private generateShortName(fullName: string): string {
+    if (!fullName) return 'TBD';
+    
+    // Handle common patterns
+    const words = fullName.split(' ');
+    if (words.length === 1) return words[0].substring(0, 3).toUpperCase();
+    
+    // Try to create meaningful abbreviations
+    if (fullName.includes('Women')) {
+      const teamPart = fullName.replace('Women', '').trim();
+      return `${teamPart.substring(0, 3).toUpperCase()}W`;
+    }
+    
+    // Take first letter of each significant word
+    const significantWords = words.filter(word => 
+      !['A', 'vs', 'and', 'the', 'of'].includes(word)
+    );
+    
+    if (significantWords.length >= 2) {
+      return significantWords.slice(0, 3)
+        .map(word => word.charAt(0).toUpperCase())
+        .join('');
+    }
+    
+    return fullName.substring(0, 3).toUpperCase();
+  }
+
+  private generateTeamLogo(teamName: string): string {
+    if (!teamName) return '/api/placeholder/48/48';
+    
+    // Create a consistent hash-based placeholder
+    let hash = 0;
+    for (let i = 0; i < teamName.length; i++) {
+      const char = teamName.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    
+    const colors = ['FF6B6B', '4ECDC4', '45B7D1', 'FFA07A', '98D8C8', 'F7DC6F'];
+    const color = colors[Math.abs(hash) % colors.length];
+    
+    return `https://via.placeholder.com/48x48/${color}/FFFFFF?text=${teamName.substring(0, 2).toUpperCase()}`;
+  }
+
+  private generateTournamentLogo(tournamentName: string): string {
+    if (!tournamentName) return '/api/placeholder/32/32';
+    
+    // Create tournament-specific placeholder
+    let hash = 0;
+    for (let i = 0; i < tournamentName.length; i++) {
+      const char = tournamentName.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    
+    const colors = ['FF9F43', '10AC84', '5F27CD', 'FF3838', '00D2D3', 'FF6348'];
+    const color = colors[Math.abs(hash) % colors.length];
+    
+    return `https://via.placeholder.com/32x32/${color}/FFFFFF?text=${tournamentName.substring(0, 1).toUpperCase()}`;
   }
 
   private extractStreamUrl(match: any): string | undefined {

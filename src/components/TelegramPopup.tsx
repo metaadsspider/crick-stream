@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { X, Send } from 'lucide-react';
+import { Send } from 'lucide-react';
 
-export const TelegramPopup = () => {
+export const TelegramPopup: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -74,3 +74,5 @@ export const TelegramPopup = () => {
     </Dialog>
   );
 };
+
+export default TelegramPopup;

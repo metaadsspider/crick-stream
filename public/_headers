@@ -3,48 +3,91 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
-  
+  Content-Type: text/html; charset=utf-8
+
+# JavaScript and Module Files
+/*.js
+  Content-Type: application/javascript; charset=utf-8
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.mjs
+  Content-Type: application/javascript; charset=utf-8
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.ts
+  Content-Type: application/javascript; charset=utf-8
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.jsx
+  Content-Type: application/javascript; charset=utf-8
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.tsx
+  Content-Type: application/javascript; charset=utf-8
+  Cache-Control: public, max-age=31536000, immutable
+
+# CSS Files
+/*.css
+  Content-Type: text/css; charset=utf-8
+  Cache-Control: public, max-age=31536000, immutable
+
+# JSON Files
+/*.json
+  Content-Type: application/json; charset=utf-8
+  Cache-Control: public, max-age=31536000, immutable
+
+/manifest.json
+  Content-Type: application/manifest+json; charset=utf-8
+  Cache-Control: public, max-age=86400
+
+# Font Files
+/*.woff2
+  Content-Type: font/woff2
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.woff
+  Content-Type: font/woff
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.ttf
+  Content-Type: font/ttf
+  Cache-Control: public, max-age=31536000, immutable
+
+# Image Files
+/*.ico
+  Content-Type: image/x-icon
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.png
+  Content-Type: image/png
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.jpg
+  Content-Type: image/jpeg
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.jpeg
+  Content-Type: image/jpeg
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.gif
+  Content-Type: image/gif
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.svg
+  Content-Type: image/svg+xml
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.webp
+  Content-Type: image/webp
+  Cache-Control: public, max-age=31536000, immutable
+
+# Assets and Static Files
 /_app/*
   Cache-Control: public, max-age=31536000, immutable
-  
+
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
-  
+
 /static/*
-  Cache-Control: public, max-age=31536000, immutable
-  
-/*.js
-  Cache-Control: public, max-age=31536000, immutable
-  
-/*.css
-  Cache-Control: public, max-age=31536000, immutable
-  
-/*.woff2
-  Cache-Control: public, max-age=31536000, immutable
-  
-/*.woff
-  Cache-Control: public, max-age=31536000, immutable
-  
-/*.ttf
-  Cache-Control: public, max-age=31536000, immutable
-  
-/*.ico
-  Cache-Control: public, max-age=31536000, immutable
-  
-/*.png
-  Cache-Control: public, max-age=31536000, immutable
-  
-/*.jpg
-  Cache-Control: public, max-age=31536000, immutable
-  
-/*.jpeg
-  Cache-Control: public, max-age=31536000, immutable
-  
-/*.gif
-  Cache-Control: public, max-age=31536000, immutable
-  
-/*.svg
-  Cache-Control: public, max-age=31536000, immutable
-  
-/*.webp
   Cache-Control: public, max-age=31536000, immutable

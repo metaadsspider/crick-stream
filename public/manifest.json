@@ -3,6 +3,7 @@
   "short_name": "CrickStream",
   "description": "Live Cricket Streaming and Match Updates",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#1A202C",
   "theme_color": "#FF6B35",
@@ -11,9 +12,11 @@
     {
       "src": "/favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
+      "type": "image/x-icon",
+      "purpose": "any maskable"
     }
   ],
   "categories": ["sports", "entertainment", "news"],
-  "lang": "en"
+  "lang": "en",
+  "dir": "ltr"
 }

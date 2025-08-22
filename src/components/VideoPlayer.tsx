@@ -170,13 +170,13 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
   };
 
   const toggleFullscreen = () => {
-    const video = videoRef.current;
-    if (!video) return;
+    const container = videoRef.current?.parentElement;
+    if (!container) return;
 
     if (document.fullscreenElement) {
       document.exitFullscreen();
     } else {
-      video.requestFullscreen();
+      container.requestFullscreen();
     }
   };
 
@@ -219,6 +219,7 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
         "relative bg-black rounded-lg overflow-hidden group w-full",
         "aspect-[16/10] sm:aspect-[16/9]", // Better ratio for cricket streams
         "max-w-full", // Ensure it doesn't overflow on mobile
+        "fullscreen:rounded-none fullscreen:aspect-auto fullscreen:h-screen fullscreen:w-screen",
         className
       )}
       onMouseEnter={() => setShowControls(true)}
@@ -227,11 +228,11 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
     >
       <video
         ref={videoRef}
-        className="w-full h-full object-cover"
+        className="w-full h-full object-cover fullscreen:object-contain"
         poster={poster}
         playsInline
         preload="metadata"
-        controls={false} // Hide native controls on mobile
+        controls={false} // Hide native controls
         webkit-playsinline="true" // iOS support
       />
 
@@ -250,16 +251,16 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
       <div 
         className={cn(
           "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent transition-opacity duration-300",
-          "p-2 sm:p-4", // Smaller padding on mobile
+          "p-2 sm:p-4 fullscreen:p-6", // Consistent padding in fullscreen
           showControls ? "opacity-100" : "opacity-0 sm:opacity-0", // Always show on mobile
-          "sm:opacity-100" // Show controls on mobile by default
+          "sm:opacity-100 fullscreen:opacity-100" // Always show controls in fullscreen
         )}
       >
         {/* Progress Bar */}
-        <div className="mb-2 sm:mb-4">
-          <div className="bg-white/20 rounded-full h-1 relative">
+        <div className="mb-2 sm:mb-4 fullscreen:mb-6">
+          <div className="bg-white/20 rounded-full h-1 fullscreen:h-2 relative">
             <div 
-              className="bg-primary rounded-full h-1 transition-all duration-300"
+              className="bg-primary rounded-full h-1 fullscreen:h-2 transition-all duration-300"
               style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }}
             />
           </div>
@@ -267,38 +268,46 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
 
         {/* Control Buttons */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 sm:space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4 fullscreen:space-x-6">
             <Button
               variant="ghost"
               size="sm"
               onClick={togglePlay}
-              className="text-white hover:text-primary hover:bg-white/10 p-2"
+              className="text-white hover:text-primary hover:bg-white/10 p-2 fullscreen:p-3"
             >
-              {isPlaying ? <Pause className="w-4 h-4 sm:w-5 sm:h-5" /> : <Play className="w-4 h-4 sm:w-5 sm:h-5" />}
+              {isPlaying ? (
+                <Pause className="w-4 h-4 sm:w-5 sm:h-5 fullscreen:w-6 fullscreen:h-6" />
+              ) : (
+                <Play className="w-4 h-4 sm:w-5 sm:h-5 fullscreen:w-6 fullscreen:h-6" />
+              )}
             </Button>
 
             <Button
               variant="ghost"
               size="sm"
               onClick={toggleMute}
-              className="text-white hover:text-primary hover:bg-white/10 p-2"
+              className="text-white hover:text-primary hover:bg-white/10 p-2 fullscreen:p-3"
             >
-              {isMuted ? <VolumeX className="w-4 h-4 sm:w-5 sm:h-5" /> : <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" />}
+              {isMuted ? (
+                <VolumeX className="w-4 h-4 sm:w-5 sm:h-5 fullscreen:w-6 fullscreen:h-6" />
+              ) : (
+                <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 fullscreen:w-6 fullscreen:h-6" />
+              )}
             </Button>
 
-            <div className="text-white text-xs sm:text-sm hidden sm:block">
+            <div className="text-white text-xs sm:text-sm fullscreen:text-base hidden sm:block">
               {formatTime(currentTime)} / {formatTime(duration)}
             </div>
           </div>
 
-          <div className="flex items-center space-x-1 sm:space-x-2">
+          <div className="flex items-center space-x-1 sm:space-x-2 fullscreen:space-x-4">
             <Button
               variant="ghost"
               size="sm"
               onClick={toggleFullscreen}
-              className="text-white hover:text-primary hover:bg-white/10 p-2"
+              className="text-white hover:text-primary hover:bg-white/10 p-2 fullscreen:p-3"
             >
-              <Maximize className="w-4 h-4 sm:w-5 sm:h-5" />
+              <Maximize className="w-4 h-4 sm:w-5 sm:h-5 fullscreen:w-6 fullscreen:h-6" />
             </Button>
           </div>
         </div>
@@ -306,8 +315,8 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
 
 
       {/* Live Badge */}
-      <div className="absolute top-2 right-2 sm:top-4 sm:right-4">
-        <div className="bg-red-600 text-white px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-bold animate-live-pulse">
+      <div className="absolute top-2 right-2 sm:top-4 sm:right-4 fullscreen:top-6 fullscreen:right-6">
+        <div className="bg-red-600 text-white px-2 py-1 sm:px-3 sm:py-1 fullscreen:px-4 fullscreen:py-2 rounded-full text-xs sm:text-sm fullscreen:text-base font-bold animate-live-pulse">
           LIVE
         </div>
       </div>

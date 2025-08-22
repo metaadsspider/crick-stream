@@ -2,7 +2,7 @@ import { CricketMatch } from '@/types/cricket';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Play, Tv } from 'lucide-react';
+import { Play } from 'lucide-react';
 
 interface MatchCardProps {
   match: CricketMatch;
@@ -49,24 +49,15 @@ export const MatchCard = ({ match, onWatch, className = '' }: MatchCardProps) =>
           {match.title}
         </h3>
         
-        {/* Action Buttons */}
-        <div className="flex space-x-3">
+        {/* Action Button */}
+        <div className="flex justify-center">
           <Button
             onClick={() => onWatch(match)}
-            className="flex-1 bg-primary hover:bg-primary/90 text-black border-2 border-primary rounded-full font-semibold transition-all duration-300 shadow-lg"
+            className="bg-primary hover:bg-primary/90 text-black border-2 border-primary rounded-full font-semibold transition-all duration-300 shadow-lg px-8"
             size="sm"
           >
             <Play className="w-4 h-4 mr-2" />
             Watch
-          </Button>
-          
-          <Button
-            onClick={() => onWatch(match)}
-            className="flex-1 bg-transparent border-2 border-primary text-primary hover:bg-primary hover:text-black rounded-full font-semibold transition-all duration-300 backdrop-blur-sm"
-            size="sm"
-          >
-            <Tv className="w-4 h-4 mr-2" />
-            Ad-Free
           </Button>
         </div>
       </div>

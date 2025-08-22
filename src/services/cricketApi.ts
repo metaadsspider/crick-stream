@@ -56,22 +56,27 @@ export class CricketApiService {
 
       console.log('Fetching fresh match data from multiple sources...');
 
-      // For production deployment, prioritize GitHub source and skip unreliable proxies
-      const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.includes('sandbox');
+      // For production deployment, use only reliable sources
+      const isProduction = window.location.hostname !== 'localhost' && 
+                          !window.location.hostname.includes('sandbox') && 
+                          !window.location.hostname.includes('lovable');
       
       let responses;
       if (isProduction) {
-        // Only use reliable sources in production
+        // Production: Only use GitHub source to avoid CORS/network issues
+        console.log('🚀 Production mode: Using reliable GitHub source only');
         responses = await Promise.allSettled([
           this.fetchFromGitHubFanCode(),
-          this.fetchFromFanCodeDirectSafe(),
         ]);
       } else {
-        // Development: try all sources
+        // Development: try multiple sources but handle failures gracefully
+        console.log('🔧 Development mode: Trying multiple sources');
         responses = await Promise.allSettled([
           this.fetchFromGitHubFanCode(),
-          this.fetchFromFanCodeDirectSafe(),
-          this.fetchFromOriginalSite(),
+          this.fetchFromFanCodeDirectSafe().catch(e => {
+            console.warn('FanCode direct failed (expected in CORS environment):', e.message);
+            return { success: false, data: [] };
+          }),
         ]);
       }
 
@@ -89,11 +94,13 @@ export class CricketApiService {
       const uniqueMatches = this.removeDuplicateMatches(allMatches);
       
       if (uniqueMatches.length > 0) {
+        console.log(`✅ Successfully loaded ${uniqueMatches.length} matches`);
         this.setCachedData(cacheKey, uniqueMatches);
         return { success: true, data: uniqueMatches };
       }
 
       // Enhanced fallback with realistic mock data - ALWAYS return data to prevent blank screens
+      console.warn('⚠️ No live data available, using fallback matches');
       const mockMatches = this.getEnhancedMockMatches();
       this.setCachedData(cacheKey, mockMatches);
       return { success: true, data: mockMatches };

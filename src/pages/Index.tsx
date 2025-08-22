@@ -72,30 +72,38 @@ const Index = () => {
     fetchMatches();
   }, [fetchMatches]);
 
-  // Enhanced auto-refresh every 20 seconds with original site sync
+  // Enhanced auto-refresh every 30 seconds with better error handling
   useEffect(() => {
-    console.log('🔄 Setting up 20-second auto-refresh for live streams...');
+    console.log('🔄 Setting up 30-second auto-refresh...');
     
-    // Auto-sync with original site every 20 seconds for real-time updates
-    const syncInterval = setInterval(async () => {
-      try {
-        console.log('📡 Syncing with original site for latest streams...');
-        await cricketApi.syncWithOriginalSite();
-        fetchMatches();
-      } catch (error) {
-        console.error('❌ Sync failed:', error);
-      }
-    }, 20000); // 20 seconds
-
-    // Primary refresh every 20 seconds
+    // Primary refresh every 30 seconds (reduced frequency)
     const refreshInterval = setInterval(() => {
       console.log('🔄 Auto-refreshing match data...');
       fetchMatches();
-    }, 20000); // 20 seconds
+    }, 30000); // 30 seconds
+
+    // Only sync with original site every 2 minutes in production
+    const isProduction = window.location.hostname !== 'localhost' && 
+                        !window.location.hostname.includes('sandbox') && 
+                        !window.location.hostname.includes('lovable');
+    
+    let syncInterval: NodeJS.Timeout | null = null;
+    
+    if (!isProduction) {
+      // Development: sync every 2 minutes
+      syncInterval = setInterval(async () => {
+        try {
+          console.log('📡 Syncing with original site...');
+          await cricketApi.syncWithOriginalSite();
+        } catch (error) {
+          console.warn('⚠️ Sync failed (expected):', error);
+        }
+      }, 120000); // 2 minutes
+    }
 
     return () => {
-      clearInterval(syncInterval);
       clearInterval(refreshInterval);
+      if (syncInterval) clearInterval(syncInterval);
     };
   }, [fetchMatches]);
 

@@ -188,45 +188,6 @@ export const StreamModal = ({ match, isOpen, onClose }: StreamModalProps) => {
             {/* Match Info Sidebar */}
             <div className="bg-card/50 backdrop-blur-sm rounded-lg p-4 border border-border/30">
               <div className="space-y-6">
-                {/* Teams */}
-                <div>
-                  <h3 className="font-semibold text-sm text-muted-foreground mb-3">TEAMS</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-3">
-                      <img
-                        src={match.team1.flag}
-                        alt={match.team1.name}
-                        className="w-10 h-10 rounded-full border-2 border-border"
-                        onError={(e) => {
-                          e.currentTarget.src = '/api/placeholder/40/40';
-                        }}
-                      />
-                      <div>
-                        <div className="font-medium">{match.team1.name}</div>
-                        <div className="text-sm text-muted-foreground">{match.team1.shortName}</div>
-                      </div>
-                    </div>
-                    
-                    <div className="text-center py-2">
-                      <span className="text-2xl font-bold text-primary">VS</span>
-                    </div>
-                    
-                    <div className="flex items-center space-x-3">
-                      <img
-                        src={match.team2.flag}
-                        alt={match.team2.name}
-                        className="w-10 h-10 rounded-full border-2 border-border"
-                        onError={(e) => {
-                          e.currentTarget.src = '/api/placeholder/40/40';
-                        }}
-                      />
-                      <div>
-                        <div className="font-medium">{match.team2.name}</div>
-                        <div className="text-sm text-muted-foreground">{match.team2.shortName}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
                 {/* Match Details */}
                 <div>

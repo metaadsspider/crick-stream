@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
 import { Button } from '@/components/ui/button';
-import { StreamQualityMonitor } from './StreamQualityMonitor';
-import { Play, Pause, Volume2, VolumeX, Maximize, Settings } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface VideoPlayerProps {
@@ -217,7 +216,8 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
   return (
     <div 
       className={cn(
-        "relative bg-black rounded-lg overflow-hidden aspect-video group w-full",
+        "relative bg-black rounded-lg overflow-hidden group w-full",
+        "aspect-[16/10] sm:aspect-[16/9]", // Better ratio for cricket streams
         "max-w-full", // Ensure it doesn't overflow on mobile
         className
       )}
@@ -245,14 +245,6 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
         </div>
       )}
 
-      {/* Title Overlay */}
-      {title && (
-        <div className="absolute top-2 left-2 right-2 sm:top-4 sm:left-4 sm:right-4">
-          <div className="bg-black/70 backdrop-blur-sm rounded-lg px-2 py-1 sm:px-4 sm:py-2">
-            <h3 className="text-white font-semibold text-sm sm:text-base truncate">{title}</h3>
-          </div>
-        </div>
-      )}
 
       {/* Controls */}
       <div 
@@ -312,12 +304,6 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
         </div>
       </div>
 
-      {/* Stream Quality Monitor */}
-      <StreamQualityMonitor
-        isStreaming={isPlaying && !isLoading}
-        streamUrl={src}
-        className="absolute top-16 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-      />
 
       {/* Live Badge */}
       <div className="absolute top-2 right-2 sm:top-4 sm:right-4">

@@ -4,19 +4,18 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
 
-/*.js
+/assets/*.js
+  Content-Type: text/javascript
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/*.mjs
+  Content-Type: text/javascript
+  Cache-Control: public, max-age=31536000, immutable
+
+/src/*.tsx
   Content-Type: text/javascript
 
-/*.mjs  
-  Content-Type: text/javascript
-
-/*.ts
-  Content-Type: text/javascript
-
-/*.jsx
-  Content-Type: text/javascript
-
-/*.tsx
+/src/main.tsx
   Content-Type: text/javascript
 
 /*.css

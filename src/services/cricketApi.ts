@@ -54,40 +54,26 @@ export class CricketApiService {
         return { success: true, data: cached };
       }
 
-      console.log('Fetching fresh match data from local JSON...');
+      console.log('Fetching fresh match data...');
 
-      // Try to fetch from local JSON file first
-      const localMatches = await this.fetchFromLocalJson();
+      // Use the same simple fetch approach as the HTML file
+      const matches = await this.fetchFromGitHubSimple();
       
+      if (matches.length > 0) {
+        console.log(`✅ Successfully loaded ${matches.length} matches`);
+        this.setCachedData(cacheKey, matches);
+        return { success: true, data: matches };
+      }
+
+      // Fallback to local JSON if GitHub fails
+      const localMatches = await this.fetchFromLocalJson();
       if (localMatches.length > 0) {
         console.log(`✅ Successfully loaded ${localMatches.length} matches from local JSON`);
         this.setCachedData(cacheKey, localMatches);
         return { success: true, data: localMatches };
       }
 
-      // Fallback to external APIs if local fails
-      const responses = await Promise.allSettled([
-        this.fetchFromGitHubFanCode(),
-      ]);
-
-      let allMatches: CricketMatch[] = [];
-      
-      for (const response of responses) {
-        if (response.status === 'fulfilled' && response.value.success) {
-          const matches = response.value.data || [];
-          allMatches = [...allMatches, ...matches];
-        }
-      }
-
-      const uniqueMatches = this.removeDuplicateMatches(allMatches);
-      
-      if (uniqueMatches.length > 0) {
-        console.log(`✅ Successfully loaded ${uniqueMatches.length} matches from external sources`);
-        this.setCachedData(cacheKey, uniqueMatches);
-        return { success: true, data: uniqueMatches };
-      }
-
-      // Enhanced fallback with realistic mock data
+      // Final fallback
       console.warn('⚠️ No live data available, using fallback matches');
       const mockMatches = this.getEnhancedMockMatches();
       this.setCachedData(cacheKey, mockMatches);
@@ -97,6 +83,58 @@ export class CricketApiService {
       console.error('Error fetching matches:', error);
       const mockMatches = this.getEnhancedMockMatches();
       return { success: true, data: mockMatches };
+    }
+  }
+
+  private async fetchFromGitHubSimple(): Promise<CricketMatch[]> {
+    try {
+      console.log('🎯 Fetching from GitHub FanCode JSON (simple fetch)...');
+      const response = await fetch('https://raw.githubusercontent.com/drmlive/fancode-live-events/refs/heads/main/fancode.json');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data && data.matches) {
+        const cricketMatches = data.matches
+          .filter((match: any) => match.event_category === 'Cricket')
+          .map((match: any) => {
+            const team1Name = match.team_1 || 'Team 1';
+            const team2Name = match.team_2 || 'Team 2';
+            
+            return {
+              id: match.match_id?.toString() || `github-${Date.now()}-${Math.random()}`,
+              title: match.title || `${team1Name} vs ${team2Name}`,
+              team1: {
+                name: team1Name,
+                shortName: this.generateShortName(team1Name),
+                flag: this.generateTeamFlag(team1Name)
+              },
+              team2: {
+                name: team2Name,
+                shortName: this.generateShortName(team2Name),
+                flag: this.generateTeamFlag(team2Name)
+              },
+              startTime: match.startTime || new Date().toISOString(),
+              status: match.status === 'LIVE' ? 'live' : match.status === 'UPCOMING' ? 'upcoming' : 'completed',
+              tournament: match.event_name || 'Cricket Match',
+              image: match.src || `/api/placeholder/400/200?text=${encodeURIComponent(match.title || 'Cricket Match')}`,
+              streamUrl: match.adfree_url || match.dai_url,
+              language: 'English',
+              isStreamable: match.status === 'LIVE' && (match.adfree_url || match.dai_url)
+            };
+          });
+        
+        console.log(`✅ GitHub Simple: Found ${cricketMatches.length} cricket matches`);
+        return cricketMatches;
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('❌ GitHub simple fetch failed:', error);
+      return [];
     }
   }
 

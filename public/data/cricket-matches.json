@@ -1,0 +1,84 @@
+{
+  "matches": [
+    {
+      "id": "1",
+      "title": "India vs Australia",
+      "subtitle": "3rd Test Match",
+      "status": "Live",
+      "venue": "Melbourne Cricket Ground",
+      "time": "Day 2",
+      "team1": {
+        "name": "India",
+        "flag": "🇮🇳",
+        "score": "245/4"
+      },
+      "team2": {
+        "name": "Australia", 
+        "flag": "🇦🇺",
+        "score": "312/8"
+      },
+      "streamUrl": "https://example-stream.com/match1",
+      "isLive": true
+    },
+    {
+      "id": "2",
+      "title": "England vs Pakistan",
+      "subtitle": "T20 International",
+      "status": "Live",
+      "venue": "Lord's Cricket Ground",
+      "time": "18.5 Overs",
+      "team1": {
+        "name": "England",
+        "flag": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+        "score": "156/3"
+      },
+      "team2": {
+        "name": "Pakistan",
+        "flag": "🇵🇰", 
+        "score": "142/6"
+      },
+      "streamUrl": "https://example-stream.com/match2",
+      "isLive": true
+    },
+    {
+      "id": "3",
+      "title": "South Africa vs New Zealand",
+      "subtitle": "ODI Series",
+      "status": "Upcoming",
+      "venue": "Cape Town Stadium",
+      "time": "Tomorrow 2:00 PM",
+      "team1": {
+        "name": "South Africa",
+        "flag": "🇿🇦",
+        "score": ""
+      },
+      "team2": {
+        "name": "New Zealand",
+        "flag": "🇳🇿",
+        "score": ""
+      },
+      "streamUrl": "https://example-stream.com/match3",
+      "isLive": false
+    },
+    {
+      "id": "4",
+      "title": "Bangladesh vs Sri Lanka",
+      "subtitle": "Test Championship",
+      "status": "Live",
+      "venue": "Shere Bangla Stadium",
+      "time": "Day 1 - 2nd Session",
+      "team1": {
+        "name": "Bangladesh",
+        "flag": "🇧🇩",
+        "score": "187/5"
+      },
+      "team2": {
+        "name": "Sri Lanka",
+        "flag": "🇱🇰",
+        "score": "298"
+      },
+      "streamUrl": "https://example-stream.com/match4",
+      "isLive": true
+    }
+  ]
+}

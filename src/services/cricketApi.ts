@@ -54,33 +54,22 @@ export class CricketApiService {
         return { success: true, data: cached };
       }
 
-      console.log('Fetching fresh match data from multiple sources...');
+      console.log('Fetching fresh match data from local JSON...');
 
-      // For production deployment, use only reliable sources
-      const isProduction = window.location.hostname !== 'localhost' && 
-                          !window.location.hostname.includes('sandbox') && 
-                          !window.location.hostname.includes('lovable');
+      // Try to fetch from local JSON file first
+      const localMatches = await this.fetchFromLocalJson();
       
-      let responses;
-      if (isProduction) {
-        // Production: Only use GitHub source to avoid CORS/network issues
-        console.log('🚀 Production mode: Using reliable GitHub source only');
-        responses = await Promise.allSettled([
-          this.fetchFromGitHubFanCode(),
-        ]);
-      } else {
-        // Development: try multiple sources but handle failures gracefully
-        console.log('🔧 Development mode: Trying multiple sources');
-        responses = await Promise.allSettled([
-          this.fetchFromGitHubFanCode(),
-          this.fetchFromFanCodeDirectSafe().catch(e => {
-            console.warn('FanCode direct failed (expected in CORS environment):', e.message);
-            return { success: false, data: [] };
-          }),
-        ]);
+      if (localMatches.length > 0) {
+        console.log(`✅ Successfully loaded ${localMatches.length} matches from local JSON`);
+        this.setCachedData(cacheKey, localMatches);
+        return { success: true, data: localMatches };
       }
 
-      // Combine all successful responses
+      // Fallback to external APIs if local fails
+      const responses = await Promise.allSettled([
+        this.fetchFromGitHubFanCode(),
+      ]);
+
       let allMatches: CricketMatch[] = [];
       
       for (const response of responses) {
@@ -90,16 +79,15 @@ export class CricketApiService {
         }
       }
 
-      // Remove duplicates based on match ID or title
       const uniqueMatches = this.removeDuplicateMatches(allMatches);
       
       if (uniqueMatches.length > 0) {
-        console.log(`✅ Successfully loaded ${uniqueMatches.length} matches`);
+        console.log(`✅ Successfully loaded ${uniqueMatches.length} matches from external sources`);
         this.setCachedData(cacheKey, uniqueMatches);
         return { success: true, data: uniqueMatches };
       }
 
-      // Enhanced fallback with realistic mock data - ALWAYS return data to prevent blank screens
+      // Enhanced fallback with realistic mock data
       console.warn('⚠️ No live data available, using fallback matches');
       const mockMatches = this.getEnhancedMockMatches();
       this.setCachedData(cacheKey, mockMatches);
@@ -107,9 +95,53 @@ export class CricketApiService {
 
     } catch (error) {
       console.error('Error fetching matches:', error);
-      // Return mock data instead of error to prevent blank screen
       const mockMatches = this.getEnhancedMockMatches();
       return { success: true, data: mockMatches };
+    }
+  }
+
+  private async fetchFromLocalJson(): Promise<CricketMatch[]> {
+    try {
+      console.log('🎯 Fetching from local cricket-matches.json...');
+      const response = await fetch('/data/cricket-matches.json');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data && data.matches) {
+        const matches = data.matches.map((match: any) => ({
+          id: match.id,
+          title: match.title,
+          team1: {
+            name: match.team1.name,
+            shortName: match.team1.name.substring(0, 3).toUpperCase(),
+            flag: match.team1.flag
+          },
+          team2: {
+            name: match.team2.name,
+            shortName: match.team2.name.substring(0, 3).toUpperCase(),
+            flag: match.team2.flag
+          },
+          startTime: new Date().toISOString(),
+          status: match.status === 'Live' ? 'live' : match.status === 'Upcoming' ? 'upcoming' : 'completed',
+          tournament: match.subtitle,
+          image: `/api/placeholder/400/200?text=${encodeURIComponent(match.title)}`,
+          streamUrl: match.streamUrl,
+          language: 'English',
+          isStreamable: match.isLive
+        }));
+        
+        console.log(`✅ Local JSON: Found ${matches.length} matches`);
+        return matches;
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('❌ Local JSON fetch failed:', error);
+      return [];
     }
   }
 

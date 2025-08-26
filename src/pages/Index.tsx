@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, Wifi } from 'lucide-react';
 
 const Index = () => {
+  console.log('🚀 Index component rendering...');
+  
   const [matches, setMatches] = useState<CricketMatch[]>([]);
   const [filteredMatches, setFilteredMatches] = useState<CricketMatch[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<CricketMatch | null>(null);
@@ -21,6 +23,14 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  
+  console.log('📊 Component state:', { 
+    matchesCount: matches.length, 
+    filteredCount: filteredMatches.length, 
+    isLoading, 
+    currentFilter, 
+    error 
+  });
 
   // Dynamic auto-refresh based on match timing
   const [autoRefreshInterval, setAutoRefreshInterval] = useState(30000);
@@ -167,6 +177,8 @@ const Index = () => {
 
   const counts = getMatchCounts();
 
+  console.log('🎨 About to render main UI...');
+  
   return (
     <div className="min-h-screen bg-gradient-dark">
       {/* Background Pattern */}

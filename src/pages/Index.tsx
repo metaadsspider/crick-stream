@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { SkullHeader } from '@/components/SkullHeader';
 import { MatchCard } from '@/components/MatchCard';
 import { StreamModal } from '@/components/StreamModal';

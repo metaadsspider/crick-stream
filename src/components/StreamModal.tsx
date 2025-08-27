@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { VideoPlayer } from './VideoPlayer';
 import { CricketMatch } from '@/types/cricket';
 import { cricketApi } from '@/services/cricketApi';
-import { X, ExternalLink, Share2, Download } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface StreamModalProps {
@@ -69,30 +69,6 @@ export const StreamModal = ({ match, isOpen, onClose }: StreamModalProps) => {
     }
   };
 
-  const handleShare = async () => {
-    if (!match) return;
-
-    try {
-      await navigator.share({
-        title: match.title,
-        text: `Watch ${match.title} live on Skull Crick News`,
-        url: window.location.href,
-      });
-    } catch (err) {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(window.location.href);
-      toast({
-        title: "Link Copied",
-        description: "Match link copied to clipboard",
-      });
-    }
-  };
-
-  const openInNewTab = () => {
-    if (streamUrl) {
-      window.open(streamUrl, '_blank');
-    }
-  };
 
   if (!match) return null;
 
@@ -115,26 +91,6 @@ export const StreamModal = ({ match, isOpen, onClose }: StreamModalProps) => {
             </div>
             
             <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleShare}
-                className="hover:bg-muted/50"
-              >
-                <Share2 className="w-4 h-4" />
-              </Button>
-              
-              {streamUrl && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={openInNewTab}
-                  className="hover:bg-muted/50"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                </Button>
-              )}
-              
               <Button
                 variant="ghost"
                 size="sm"
@@ -223,22 +179,6 @@ export const StreamModal = ({ match, isOpen, onClose }: StreamModalProps) => {
                   </div>
                 </div>
 
-                {/* CORS Notice */}
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
-                  <h4 className="font-semibold text-amber-500 text-sm mb-2">CORS Notice</h4>
-                  <p className="text-xs text-amber-500/80 mb-2">
-                    If the stream doesn't load, install a CORS browser extension:
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full text-xs"
-                    onClick={() => window.open('https://chrome.google.com/webstore/search/cors', '_blank')}
-                  >
-                    <Download className="w-3 h-3 mr-1" />
-                    Get CORS Extension
-                  </Button>
-                </div>
 
                 {/* Telegram Link */}
                 <div className="bg-accent/10 border border-accent/20 rounded-lg p-3">

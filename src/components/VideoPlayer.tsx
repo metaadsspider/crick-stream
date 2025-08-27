@@ -56,6 +56,13 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
         startLevel: -1, // Auto start level
         capLevelOnFPSDrop: true,
         capLevelToPlayerSize: true,
+        // CORS and Netlify-friendly settings
+        xhrSetup: function(xhr: XMLHttpRequest, url: string) {
+          xhr.setRequestHeader('Access-Control-Allow-Origin', '*');
+          xhr.setRequestHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+          xhr.setRequestHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+          xhr.withCredentials = false; // Disable credentials for CORS
+        },
       });
 
       hlsRef.current = hls;
@@ -102,17 +109,19 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
       video.src = src;
       video.load();
       setIsLoading(false);
-      // Enhanced settings for Safari
+      // Enhanced settings for Safari and Netlify
       video.setAttribute('playsinline', 'true');
       video.setAttribute('webkit-playsinline', 'true');
+      video.crossOrigin = 'anonymous'; // Enable CORS
     } else {
       // Fallback for regular video with optimizations
       video.src = src;
       video.load();
       setIsLoading(false);
-      // Optimize for live streaming
+      // Optimize for live streaming and Netlify deployment
       video.setAttribute('preload', 'auto');
       video.setAttribute('playsinline', 'true');
+      video.crossOrigin = 'anonymous'; // Enable CORS
     }
   }, [src]);
 

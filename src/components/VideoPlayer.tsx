@@ -26,11 +26,13 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
     const video = videoRef.current;
     if (!video || !src) return;
 
+    console.log('🎥 VideoPlayer: Starting video setup with src:', src);
     setIsLoading(true);
     setError(null);
 
     // Check if HLS is supported
     if (Hls.isSupported() && src.includes('.m3u8')) {
+      console.log('🎥 VideoPlayer: Using HLS.js for m3u8 stream');
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
@@ -58,6 +60,7 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
         capLevelToPlayerSize: true,
         // CORS-friendly settings for restricted streams
         xhrSetup: function(xhr: XMLHttpRequest, url: string) {
+          console.log('🌐 XHR Setup for URL:', url);
           // Don't add CORS headers - let browser handle it
           xhr.withCredentials = false;
           // Add user agent to appear like regular browser request
@@ -70,56 +73,66 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        console.log('HLS manifest parsed, starting playback');
+        console.log('✅ HLS manifest parsed successfully, starting playback');
         setIsLoading(false);
         // Auto-play for live streams
-        video.play().catch(console.error);
+        video.play().catch((e) => {
+          console.error('❌ Auto-play failed:', e);
+        });
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
+        console.error('❌ HLS Error Event:', event);
+        console.error('❌ HLS Error Data:', data);
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.log('Network error, attempting recovery...');
+              console.log('🔄 Network error, attempting recovery...');
               setTimeout(() => {
                 try {
                   hls.startLoad();
                 } catch (e) {
-                  console.error('Recovery failed:', e);
-                  setError('Network connection failed');
+                  console.error('❌ Recovery failed:', e);
+                  setError('Network connection failed - CORS issue detected');
                 }
               }, 1000);
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.log('Media error, attempting recovery...');
+              console.log('🔄 Media error, attempting recovery...');
               try {
                 hls.recoverMediaError();
               } catch (e) {
-                console.error('Media recovery failed:', e);
+                console.error('❌ Media recovery failed:', e);
                 setError('Media playback error');
               }
               break;
             default:
-              console.error('Critical HLS error:', data);
-              setError('Stream temporarily unavailable');
+              console.error('❌ Critical HLS error:', data);
+              setError('Stream blocked by CORS policy');
               break;
           }
         } else {
           // Non-fatal errors - just log them
-          console.warn('HLS warning:', data.type, data.details);
+          console.warn('⚠️ HLS warning:', data.type, data.details);
         }
         setIsLoading(false);
       });
 
       // Quality level monitoring
       hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
-        console.log(`Quality switched to level ${data.level}`);
+        console.log(`📊 Quality switched to level ${data.level}`);
+      });
+
+      hls.on(Hls.Events.FRAG_LOADED, () => {
+        console.log('📦 Fragment loaded successfully');
       });
 
       return () => {
+        console.log('🧹 Cleaning up HLS instance');
         hls.destroy();
       };
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      console.log('🍎 Using native HLS support (Safari)');
       // Native HLS support (Safari)
       video.src = src;
       video.load();
@@ -130,6 +143,7 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
       // Try without CORS first, fallback if needed
       video.removeAttribute('crossorigin');
     } else {
+      console.log('📹 Using fallback video loading');
       // Fallback for regular video with optimizations
       video.src = src;
       video.load();

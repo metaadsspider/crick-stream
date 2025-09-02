@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { VideoPlayer } from './VideoPlayer';
@@ -101,6 +101,9 @@ export const StreamModal = ({ match, isOpen, onClose }: StreamModalProps) => {
               </Button>
             </div>
           </div>
+          <DialogDescription className="sr-only">
+            Watch live cricket stream for {match.title}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 p-6 pt-4">

@@ -77,21 +77,36 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
-        console.error('HLS Error:', data);
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.log('Network error, trying to recover...');
-              hls.startLoad();
+              console.log('Network error, attempting recovery...');
+              setTimeout(() => {
+                try {
+                  hls.startLoad();
+                } catch (e) {
+                  console.error('Recovery failed:', e);
+                  setError('Network connection failed');
+                }
+              }, 1000);
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.log('Media error, trying to recover...');
-              hls.recoverMediaError();
+              console.log('Media error, attempting recovery...');
+              try {
+                hls.recoverMediaError();
+              } catch (e) {
+                console.error('Media recovery failed:', e);
+                setError('Media playback error');
+              }
               break;
             default:
-              setError('Critical stream error occurred');
+              console.error('Critical HLS error:', data);
+              setError('Stream temporarily unavailable');
               break;
           }
+        } else {
+          // Non-fatal errors - just log them
+          console.warn('HLS warning:', data.type, data.details);
         }
         setIsLoading(false);
       });

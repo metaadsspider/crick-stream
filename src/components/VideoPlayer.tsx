@@ -56,12 +56,12 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
         startLevel: -1, // Auto start level
         capLevelOnFPSDrop: true,
         capLevelToPlayerSize: true,
-        // CORS and Netlify-friendly settings
+        // CORS-friendly settings for restricted streams
         xhrSetup: function(xhr: XMLHttpRequest, url: string) {
-          xhr.setRequestHeader('Access-Control-Allow-Origin', '*');
-          xhr.setRequestHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-          xhr.setRequestHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-          xhr.withCredentials = false; // Disable credentials for CORS
+          // Don't add CORS headers - let browser handle it
+          xhr.withCredentials = false;
+          // Add user agent to appear like regular browser request
+          xhr.setRequestHeader('User-Agent', 'Mozilla/5.0 (compatible)');
         },
       });
 
@@ -127,7 +127,8 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
       // Enhanced settings for Safari and Netlify
       video.setAttribute('playsinline', 'true');
       video.setAttribute('webkit-playsinline', 'true');
-      video.crossOrigin = 'anonymous'; // Enable CORS
+      // Try without CORS first, fallback if needed
+      video.removeAttribute('crossorigin');
     } else {
       // Fallback for regular video with optimizations
       video.src = src;
@@ -136,7 +137,8 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
       // Optimize for live streaming and Netlify deployment
       video.setAttribute('preload', 'auto');
       video.setAttribute('playsinline', 'true');
-      video.crossOrigin = 'anonymous'; // Enable CORS
+      // Remove CORS restriction for fallback
+      video.removeAttribute('crossorigin');
     }
   }, [src]);
 
@@ -150,8 +152,25 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
     const handlePause = () => setIsPlaying(false);
     const handleLoadStart = () => setIsLoading(true);
     const handleCanPlay = () => setIsLoading(false);
-    const handleError = () => {
-      setError('Video failed to load');
+    const handleError = (e: Event) => {
+      console.log('Video error event:', e);
+      // Try to provide more specific error message
+      const videoError = (e.target as HTMLVideoElement)?.error;
+      if (videoError) {
+        console.log('Video error details:', videoError.code, videoError.message);
+        switch (videoError.code) {
+          case MediaError.MEDIA_ERR_NETWORK:
+            setError('Network error - try enabling CORS extension');
+            break;
+          case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+            setError('Stream format not supported');
+            break;
+          default:
+            setError('Video failed to load');
+        }
+      } else {
+        setError('Video failed to load');
+      }
       setIsLoading(false);
     };
 

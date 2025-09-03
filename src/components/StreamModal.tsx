@@ -33,35 +33,57 @@ export const StreamModal = ({ match, isOpen, onClose }: StreamModalProps) => {
     setError(null);
 
     try {
-      // First try the match's existing stream URL
-      if (match.streamUrl) {
-        setStreamUrl(match.streamUrl);
-        setIsLoading(false);
-        return;
-      }
-
-      // Try to fetch from our API service
-      const url = await cricketApi.getStreamUrl(match.id);
+      console.log('🔍 Fetching stream URL for match:', match.id);
       
-      if (url) {
-        setStreamUrl(url);
+      // Priority order: adfree_url > dai_url > streamUrl > API
+      let selectedUrl = null;
+      
+      // First try adfree_url (less restricted, better for CORS)
+      if ((match as any).adfree_url) {
+        selectedUrl = (match as any).adfree_url;
+        console.log('✅ Using adfree_url (best option):', selectedUrl);
+      }
+      // Then try dai_url
+      else if ((match as any).dai_url) {
+        selectedUrl = (match as any).dai_url;
+        console.log('📺 Using dai_url:', selectedUrl);
+      }
+      // Then try existing streamUrl
+      else if (match.streamUrl) {
+        selectedUrl = match.streamUrl;
+        console.log('🔗 Using provided stream URL:', selectedUrl);
+      }
+      
+      if (selectedUrl) {
+        setStreamUrl(selectedUrl);
         toast({
           title: "Stream Ready",
           description: "Successfully loaded the stream",
         });
-      } else {
-        setError('Stream not available for this match');
+        return;
+      }
+      
+      // Fallback: Try to get stream URL from API using match_id
+      console.log('🔄 No direct URLs available, trying API...');
+      const matchId = (match as any).match_id || match.id;
+      const url = await cricketApi.getStreamUrl(matchId.toString());
+      
+      if (url) {
+        console.log('✅ Got stream URL from API:', url);
+        setStreamUrl(url);
         toast({
-          title: "Stream Unavailable",
-          description: "No stream found for this match",
-          variant: "destructive",
+          title: "Stream Ready", 
+          description: "Successfully loaded the stream",
         });
+      } else {
+        throw new Error('No stream URL available from any source');
       }
     } catch (err) {
-      setError('Failed to load stream');
+      console.error('❌ Failed to fetch stream URL:', err);
+      setError('Stream temporarily unavailable. Please try another match.');
       toast({
-        title: "Error",
-        description: "Failed to load the stream",
+        title: "Stream Unavailable",
+        description: "This stream may be geo-blocked or temporarily down. Try another match.",
         variant: "destructive",
       });
     } finally {

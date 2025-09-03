@@ -3,6 +3,7 @@ import Hls from 'hls.js';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CorsProxy } from '@/services/corsProxy';
 
 interface VideoPlayerProps {
   src: string;
@@ -30,106 +31,169 @@ export const VideoPlayer = ({ src, poster, title, className }: VideoPlayerProps)
     setIsLoading(true);
     setError(null);
 
-    // Try multiple approaches to bypass CORS
-    const tryDirectVideo = () => {
-      console.log('📹 Trying direct video approach');
-      video.src = src;
-      video.load();
-      
-      // Remove any CORS restrictions
-      video.removeAttribute('crossorigin');
-      video.setAttribute('referrerpolicy', 'no-referrer');
-      
-      const onLoadedData = () => {
-        console.log('✅ Direct video loaded successfully');
-        setIsLoading(false);
-        video.play().catch(console.error);
-      };
-      
-      const onError = () => {
-        console.log('❌ Direct video failed, trying HLS approach');
-        tryHLSApproach();
-      };
-      
-      video.addEventListener('loadeddata', onLoadedData, { once: true });
-      video.addEventListener('error', onError, { once: true });
-    };
+    let currentHls: Hls | null = null;
+    let attemptIndex = 0;
 
-    const tryHLSApproach = () => {
-      if (!Hls.isSupported() || !src.includes('.m3u8')) {
-        tryFallback();
-        return;
-      }
+    const tryMultipleUrls = async () => {
+      // Get all possible URLs including CORS proxies and Sony Liv bypasses
+      const urlsToTry = CorsProxy.getProxiedUrls(src);
+      console.log('🔄 Will try', urlsToTry.length, 'different URLs:', urlsToTry);
 
-      console.log('🎥 VideoPlayer: Using HLS.js for m3u8 stream');
-      const hls = new Hls({
-        enableWorker: false, // Disable worker to avoid CORS issues
-        lowLatencyMode: false, // Disable for better compatibility
-        backBufferLength: 30,
-        maxBufferLength: 10, // Shorter buffer for faster loading
-        maxMaxBufferLength: 30,
-        manifestLoadingTimeOut: 5000, // Shorter timeout
-        manifestLoadingMaxRetry: 1, // Less retries for faster fallback
-        manifestLoadingRetryDelay: 100,
-        // Disable level cap for better compatibility
-        capLevelOnFPSDrop: false,
-        capLevelToPlayerSize: false,
-        // Simplified XHR setup
-        xhrSetup: function(xhr: XMLHttpRequest, url: string) {
-          console.log('🌐 HLS XHR Setup for URL:', url);
-          xhr.withCredentials = false;
-          // Try to appear as regular browser request
-          xhr.setRequestHeader('Accept', '*/*');
-          xhr.setRequestHeader('Cache-Control', 'no-cache');
-        },
-      });
-
-      hlsRef.current = hls;
-      hls.loadSource(src);
-      hls.attachMedia(video);
-
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        console.log('✅ HLS manifest parsed successfully, starting playback');
-        setIsLoading(false);
-        video.play().catch((e) => {
-          console.error('❌ Auto-play failed:', e);
-        });
-      });
-
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        console.error('❌ HLS Error Event:', event);
-        console.error('❌ HLS Error Data:', data);
-        if (data.fatal) {
-          console.log('🔄 HLS failed, trying fallback approach');
-          tryFallback();
-        } else {
-          console.warn('⚠️ HLS warning:', data.type, data.details);
+      const tryNextUrl = async () => {
+        if (attemptIndex >= urlsToTry.length) {
+          console.error('❌ All URL attempts failed');
+          setError('Stream blocked - no working proxy found');
+          setIsLoading(false);
+          return;
         }
-        setIsLoading(false);
-      });
 
-      return () => {
-        console.log('🧹 Cleaning up HLS instance');
-        hls.destroy();
+        const currentUrl = urlsToTry[attemptIndex];
+        console.log(`🎯 Trying URL ${attemptIndex + 1}/${urlsToTry.length}:`, currentUrl);
+        attemptIndex++;
+
+        if (currentUrl.includes('.m3u8') && Hls.isSupported()) {
+          await tryHLSWithUrl(currentUrl);
+        } else {
+          await tryDirectVideoWithUrl(currentUrl);
+        }
       };
+
+      const tryHLSWithUrl = async (url: string) => {
+        return new Promise<void>((resolve) => {
+          console.log('🎥 Trying HLS with URL:', url);
+          
+          // Clean up previous HLS instance
+          if (currentHls) {
+            currentHls.destroy();
+          }
+
+          const hls = new Hls({
+            enableWorker: false,
+            lowLatencyMode: false,
+            backBufferLength: 10,
+            maxBufferLength: 5,
+            maxMaxBufferLength: 10,
+            manifestLoadingTimeOut: 3000,
+            manifestLoadingMaxRetry: 0,
+            manifestLoadingRetryDelay: 0,
+            fragLoadingTimeOut: 3000,
+            fragLoadingMaxRetry: 0,
+            capLevelOnFPSDrop: false,
+            capLevelToPlayerSize: false,
+            xhrSetup: function(xhr: XMLHttpRequest, requestUrl: string) {
+              console.log('🌐 XHR Setup for:', requestUrl);
+              xhr.withCredentials = false;
+              xhr.timeout = 3000;
+              
+              // Sony Liv / FanCode specific headers
+              if (url.includes('sony') || url.includes('fancode') || url.includes('dai.google.com')) {
+                xhr.setRequestHeader('Origin', 'https://www.sonyliv.com');
+                xhr.setRequestHeader('Referer', 'https://www.sonyliv.com/');
+              }
+              
+              xhr.setRequestHeader('Accept', '*/*');
+              xhr.setRequestHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+            },
+          });
+
+          currentHls = hls;
+          hlsRef.current = hls;
+
+          let hasResolved = false;
+
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            if (hasResolved) return;
+            hasResolved = true;
+            console.log('✅ HLS SUCCESS with URL:', url);
+            setIsLoading(false);
+            video.play().catch(console.error);
+            resolve();
+          });
+
+          hls.on(Hls.Events.ERROR, (event, data) => {
+            if (hasResolved) return;
+            console.warn(`⚠️ HLS Error with URL ${url}:`, data.type, data.details);
+            
+            if (data.fatal || hasResolved) {
+              hasResolved = true;
+              console.log('🔄 HLS failed, trying next URL...');
+              hls.destroy();
+              setTimeout(tryNextUrl, 100);
+              resolve();
+            }
+          });
+
+          // Timeout fallback
+          setTimeout(() => {
+            if (!hasResolved) {
+              hasResolved = true;
+              console.log('⏱️ HLS timeout, trying next URL...');
+              hls.destroy();
+              tryNextUrl();
+              resolve();
+            }
+          }, 5000);
+
+          hls.loadSource(url);
+          hls.attachMedia(video);
+        });
+      };
+
+      const tryDirectVideoWithUrl = async (url: string) => {
+        return new Promise<void>((resolve) => {
+          console.log('📹 Trying direct video with URL:', url);
+          
+          video.removeAttribute('crossorigin');
+          video.setAttribute('referrerpolicy', 'no-referrer');
+          
+          let hasResolved = false;
+
+          const onSuccess = () => {
+            if (hasResolved) return;
+            hasResolved = true;
+            console.log('✅ Direct video SUCCESS with URL:', url);
+            setIsLoading(false);
+            video.play().catch(console.error);
+            resolve();
+          };
+
+          const onFailure = () => {
+            if (hasResolved) return;
+            hasResolved = true;
+            console.log('❌ Direct video failed, trying next URL...');
+            setTimeout(tryNextUrl, 100);
+            resolve();
+          };
+
+          video.addEventListener('loadeddata', onSuccess, { once: true });
+          video.addEventListener('error', onFailure, { once: true });
+
+          // Timeout fallback
+          setTimeout(() => {
+            if (!hasResolved) {
+              hasResolved = true;
+              console.log('⏱️ Direct video timeout, trying next URL...');
+              tryNextUrl();
+              resolve();
+            }
+          }, 3000);
+
+          video.src = url;
+          video.load();
+        });
+      };
+
+      // Start trying URLs
+      await tryNextUrl();
     };
 
-    const tryFallback = () => {
-      console.log('📱 Trying fallback approach');
-      video.removeAttribute('crossorigin');
-      video.setAttribute('playsinline', 'true');
-      video.setAttribute('webkit-playsinline', 'true');
-      video.src = src;
-      video.load();
-      setIsLoading(false);
-    };
+    tryMultipleUrls();
 
-    // Start with direct video approach first
-    if (src.includes('.m3u8') && Hls.isSupported()) {
-      tryHLSApproach();
-    } else {
-      tryDirectVideo();
-    }
+    return () => {
+      if (currentHls) {
+        currentHls.destroy();
+      }
+    };
   }, [src]);
 
   useEffect(() => {

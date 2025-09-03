@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { VideoPlayer } from './VideoPlayer';
+import { IframePlayer } from './IframePlayer';
 import { CricketMatch } from '@/types/cricket';
 import { cricketApi } from '@/services/cricketApi';
 import { X } from 'lucide-react';
@@ -18,6 +19,7 @@ export const StreamModal = ({ match, isOpen, onClose }: StreamModalProps) => {
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [useIframePlayer, setUseIframePlayer] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -140,12 +142,43 @@ export const StreamModal = ({ match, isOpen, onClose }: StreamModalProps) => {
                   </div>
                 </div>
               ) : streamUrl ? (
-                <VideoPlayer
-                  src={streamUrl}
-                  title={match.title}
-                  poster={match.image}
-                  className="h-full"
-                />
+                <div className="space-y-4">
+                  {/* Player Toggle Buttons */}
+                  <div className="flex space-x-2">
+                    <Button
+                      variant={!useIframePlayer ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setUseIframePlayer(false)}
+                      className="text-xs"
+                    >
+                      🎥 Main Player
+                    </Button>
+                    <Button
+                      variant={useIframePlayer ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setUseIframePlayer(true)}
+                      className="text-xs"
+                    >
+                      📺 Alternative Player (Sony Liv Compatible)
+                    </Button>
+                  </div>
+
+                  {/* Player Component */}
+                  {!useIframePlayer ? (
+                    <VideoPlayer
+                      src={streamUrl}
+                      title={match.title}
+                      poster={match.image}
+                      className="h-full"
+                    />
+                  ) : (
+                    <IframePlayer
+                      src={streamUrl}
+                      title={match.title}
+                      className="h-full"
+                    />
+                  )}
+                </div>
               ) : (
                 <div className="aspect-video bg-gradient-dark rounded-lg flex items-center justify-center">
                   <div className="text-center">
@@ -154,13 +187,24 @@ export const StreamModal = ({ match, isOpen, onClose }: StreamModalProps) => {
                     <p className="text-sm text-muted-foreground mb-4">
                       {error || 'No stream available for this match'}
                     </p>
-                    <Button 
-                      onClick={fetchStreamUrl}
-                      variant="outline"
-                      className="hover:bg-primary/10"
-                    >
-                      Retry
-                    </Button>
+                    <div className="space-y-2">
+                      <Button 
+                        onClick={fetchStreamUrl}
+                        variant="outline"
+                        className="hover:bg-primary/10 mr-2"
+                      >
+                        Retry
+                      </Button>
+                      {streamUrl && (
+                        <Button 
+                          onClick={() => setUseIframePlayer(true)}
+                          variant="secondary"
+                          className="text-xs"
+                        >
+                          Try Alternative Player
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
